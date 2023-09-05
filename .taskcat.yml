@@ -1,5 +1,5 @@
 project:
-  name: quickstart-aws-dms-automation
+  name: cfn-ps-aws-dms-automation
   owner: nagmeshk@amazon.com
   package_lambda: false
   regions:
