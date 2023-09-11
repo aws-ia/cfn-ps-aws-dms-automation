@@ -235,7 +235,7 @@ Resources:
           - Arn
       Timeout: 900
       Code:
-        ZipFile: "import cfnresponse\nimport json\nimport boto3\nimport botocore\n# import cfnresponse\n\niam = boto3.client('iam')\nroles = ['dms-vpc-role','dms-cloudwatch-logs-role']\nassume_doc = {\n\
+        ZipFile: "import cfnresponse\nimport json\nimport boto3\nimport botocore\n # import cfnresponse\n\niam = boto3.client('iam')\nroles = ['dms-vpc-role','dms-cloudwatch-logs-role']\n assume_doc = {\n\
           \  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"dms.amazonaws.com\"\n      },\n \
           \     \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}\n\ndef lambda_handler(event, context):\n  try:\n    if event['RequestType'] == 'Create':\n      for role_name in roles:\n        try:\n    \
           \      role = iam.get_role(RoleName=role_name)\n        except botocore.exceptions.ClientError as e:\n          if e.response['Error']['Code'] == 'NoSuchEntity':\n            print(role_name +\
