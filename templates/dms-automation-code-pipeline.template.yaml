@@ -573,7 +573,7 @@ Resources:
                   - logs:PutLogEvents
                 Effect: Allow
                 Resource:
-                  - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
+                  - Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
               - Action:
                   - s3:PutObject
                   - s3:GetObject
@@ -581,7 +581,7 @@ Resources:
                   - s3:GetObjectVersion
                 Effect: Allow
                 Resource:
-                  - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}*
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ArtifactStoreS3Location}*
               - Action:
                   - dms:StartReplicationTask
                   - dms:CreateReplicationTask
@@ -592,10 +592,10 @@ Resources:
               - Action: ssm:GetParameters
                 Effect: Allow
                 Resource:
-                  - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${TargetRdsPassword}
+                  - Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${TargetRdsPassword}
                   - Fn::If:
                       - cCreateSource
-                      - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SourceRdsPassword}
+                      - Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SourceRdsPassword}
                       - Ref: AWS::NoValue
               - Action:
                   - sns:GetTopicAttributes
@@ -624,10 +624,10 @@ Resources:
                   StringEquals:
                     ec2:AuthorizedService: codebuild.amazonaws.com
                     ec2:Subnet:
-                      - Fn::Sub: arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${CodeBuildSubnet}
+                      - Fn::Sub: arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/${CodeBuildSubnet}
                 Effect: Allow
                 Resource:
-                  Fn::Sub: arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
+                  Fn::Sub: arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
             Version: 2012-10-17
     Metadata:
       cfn-lint:
@@ -670,7 +670,7 @@ Resources:
                 - lambda.amazonaws.com
         Version: 2012-10-17
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName:
             Fn::Sub: lambda-${AWS::StackName}-${AWS::Region}-policy
@@ -689,7 +689,7 @@ Resources:
                   - ssm:PutParameter
                 Effect: Allow
                 Resource:
-                  Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CodepipelineExecutionToken}
+                  Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CodepipelineExecutionToken}
             Version: 2012-10-17
     Metadata:
       cfn-lint:
@@ -733,7 +733,7 @@ Resources:
           notify_topic:
             Ref: MigrationNotification
       Handler: index.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.9
       Role:
         Fn::GetAtt:
           - MigrationLambdaRole
@@ -763,7 +763,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
       Policies:
         - PolicyName: dms-connection-access
@@ -884,7 +884,7 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
       Policies:
         - PolicyDocument:
@@ -900,7 +900,7 @@ Resources:
                   - s3:GetBucketVersioning
                 Effect: Allow
                 Resource:
-                  Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}*
+                  Fn::Sub: arn:${AWS::Partition}:s3:::${ArtifactStoreS3Location}*
             Version: 2012-10-17
           PolicyName: S3CleanupPolicy
   S3CleanUpFunction:
@@ -912,7 +912,7 @@ Resources:
         Fn::GetAtt:
           - S3CleanUpRole
           - Arn
-      Runtime: python3.6
+      Runtime: python3.9
       Timeout: 240
       Code:
         ZipFile: "import boto3\nimport cfnresponse\nimport json\n\ndef lambda_handler(event, context):\n  try:\n    bucketcfn=event['ResourceProperties']['DestBucket']\n    responseData = {}\n    print('Received\
@@ -932,7 +932,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
       Policies:
         - PolicyName: dms-connection-access

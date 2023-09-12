@@ -208,7 +208,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
       Policies:
         - PolicyName: dms-iam-access
@@ -221,7 +221,7 @@ Resources:
                   - iam:CreateRole
                   - iam:AttachRolePolicy
                 Resource:
-                  Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/dms*
+                  Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/dms*
   CheckDmsTaskRolesFunc:
     Condition: CreateReplicationInstance
     Type: AWS::Lambda::Function

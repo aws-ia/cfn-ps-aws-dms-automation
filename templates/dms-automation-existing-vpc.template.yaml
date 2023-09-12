@@ -72,8 +72,6 @@ Metadata:
         default: Multi AZ
       FullLoadOnly:
         default: Full load only
-      CreateSample:
-        default: Create sample
       MigNotify:
         default: Notification email
       TaskName:
@@ -122,8 +120,6 @@ Metadata:
         default: Public subnet 2 ID
       ExistingSgID:
         default: Security group ID
-      AvailabilityZones:
-        default: Availability Zones
       KeyPairName:
         default: Key pair name
       RemoteAccessCIDR:
