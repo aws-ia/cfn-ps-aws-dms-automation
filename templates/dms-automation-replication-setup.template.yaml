@@ -1,0 +1,351 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This stack will be used to deploy the AWS DMS automation framework for existing VPC (qs-1qcbtheaa)
+Metadata:
+  LICENSE: Apache License Version 2.0
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: DMS Replication Instance Configuration
+        Parameters:
+          - CreateNewReplicationInstance
+          - ReplInstanceArn
+          - PrivateSubnet1
+          - PrivateSubnet2
+          - SecurityGroup
+          - InstanceType
+          - EngineVersion
+          - MultiAz
+      - Label:
+          default: Source Database Configuration
+        Parameters:
+          - SourceDBName
+          - SourceEngine
+          - SourcePassword
+          - SourcePort
+          - SourceEndpointServer
+          - SourceUser
+      - Label:
+          default: Target Database Configuration
+        Parameters:
+          - TargetDBName
+          - TargetEngine
+          - TargetPassword
+          - TargetPort
+          - TargetEndpointServer
+          - TargetUser
+    ParameterLabels:
+      CreateNewReplicationInstance:
+        default: Create New Replication Instance?
+      ReplInstanceArn:
+        default: Existing DMS Replication Instance Arn
+      SourceDBName:
+        default: Source Database Name
+      SourceEngine:
+        default: Source Database Engine
+      SourcePassword:
+        default: Source Database Password
+      SourcePort:
+        default: Source Database Port
+      SourceEndpointServer:
+        default: Source Database Endpoint
+      SourceUser:
+        default: Source Database Username
+      TargetDBName:
+        default: Target Database Name
+      TargetEngine:
+        default: Target Database Engine
+      TargetPassword:
+        default: Target Database Password
+      TargetPort:
+        default: Target Database Port
+      TargetEndpointServer:
+        default: Target Database Endpoint
+      TargetUser:
+        default: Target Database Username
+      EngineVersion:
+        default: Replication Engine Version
+      InstanceType:
+        default: Instance Type
+      MultiAz:
+        default: Enable MultiAZ
+      SecurityGroup:
+        default: Security Group
+      PrivateSubnet1:
+        default: Private Subnet 1
+      PrivateSubnet2:
+        default: Private Subnet 2
+Parameters:
+  CreateNewReplicationInstance:
+    Type: String
+    Default: 'yes'
+    AllowedValues:
+      - 'yes'
+      - 'no'
+    Description: Please specify if you want to create new replication instance
+  ReplInstanceArn:
+    Type: String
+    Description: Arn of the DMS replication instance
+  EngineVersion:
+    AllowedValues:
+      - 3.1.4
+      - 3.1.3
+      - 2.4.5
+      - 2.4.4
+      - 2.4.3
+    Default: 3.1.4
+    Description: DMS replication engine version
+    Type: String
+  InstanceType:
+    AllowedValues:
+      - dms.t2.micro
+      - dms.t2.small
+      - dms.t2.medium
+      - dms.t2.large
+      - dms.c4.large
+      - dms.c4.xlarge
+      - dms.c4.2xlarge
+      - dms.c4.4xlarge
+    Default: dms.c4.large
+    Description: DMS replication instance type
+    Type: String
+  MultiAz:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: Enable MultiAZ
+    Type: String
+  SecurityGroup:
+    Description: Security group ID for DMS replication instance (e.g., sg-1234abcd)
+    Type: AWS::EC2::SecurityGroup::Id
+  PrivateSubnet1:
+    Description: Choose a private subnet for DMS replication instance
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2:
+    Description: Choose a private subnet for DMS replication instance
+    Type: AWS::EC2::Subnet::Id
+  SourceDBName:
+    Type: String
+    Description: Name of the database in source server
+  SourceEngine:
+    Type: String
+    Description: Database engine running on the source
+    Default: oracle
+    AllowedValues:
+      - mysql
+      - oracle
+      - postgres
+      - mariadb
+      - db2
+      - azuredb
+      - sybase
+      - sqlserver
+  SourcePassword:
+    Type: String
+    Description: Source database password
+    NoEcho: 'true'
+  SourcePort:
+    Type: String
+    Description: Port on which the source database is running
+  SourceEndpointServer:
+    Type: String
+    Description: Source database hostname, endpoint URL or IP address
+  SourceUser:
+    Type: String
+    Description: Source database user name
+  TargetDBName:
+    Type: String
+    Description: Name of the database in target server
+  TargetEngine:
+    Type: String
+    Description: Database engine running on the target
+    AllowedValues:
+      - mysql
+      - oracle
+      - postgres
+      - mariadb
+      - aurora
+      - aurora-postgresql
+      - redshift
+      - sqlserver
+    Default: aurora-postgresql
+  TargetPassword:
+    Type: String
+    Description: Target database password
+    NoEcho: 'true'
+  TargetPort:
+    Type: String
+    Description: Port on which the target database is running
+  TargetEndpointServer:
+    Type: String
+    Description: Target database hostname, endpoint URL or IP address
+  TargetUser:
+    Type: String
+    Description: Target database user name
+Conditions:
+  CreateReplicationInstance:
+    Fn::Equals:
+      - Ref: CreateNewReplicationInstance
+      - 'yes'
+Resources:
+  CheckDmsIam:
+    Type: Custom::DmsIam
+    Condition: CreateReplicationInstance
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CheckDmsTaskRolesFunc
+          - Arn
+  CheckDmsTaskRoles:
+    Condition: CreateReplicationInstance
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: dms-iam-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:AttachRolePolicy
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/dms*
+  CheckDmsTaskRolesFunc:
+    Condition: CreateReplicationInstance
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Checks the IAM role for DMS and creates them if they dont exist
+      Handler: index.lambda_handler
+      Runtime: python3.7
+      Role:
+        Fn::GetAtt:
+          - CheckDmsTaskRoles
+          - Arn
+      Timeout: 900
+      Code:
+        ZipFile: "import cfnresponse\nimport json\nimport boto3\nimport botocore\n # import cfnresponse\n\niam = boto3.client('iam')\nroles = ['dms-vpc-role','dms-cloudwatch-logs-role']\n assume_doc = {\n\
+          \  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"\",\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"dms.amazonaws.com\"\n      },\n \
+          \     \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}\n\ndef lambda_handler(event, context):\n  try:\n    if event['RequestType'] == 'Create':\n      for role_name in roles:\n        try:\n    \
+          \      role = iam.get_role(RoleName=role_name)\n        except botocore.exceptions.ClientError as e:\n          if e.response['Error']['Code'] == 'NoSuchEntity':\n            print(role_name +\
+          \ ' role does not exist. Creating them now')\n            create_role = iam.create_role(RoleName=role_name,AssumeRolePolicyDocument=json.dumps(assume_doc))\n          else: \n            cfnresponse.send(event,\
+          \ context, cfnresponse.FAILED, {}, '')\n        try:\n          if role_name == 'dms-vpc-role':\n            policy1 = iam.attach_role_policy(RoleName = role_name,PolicyArn = 'arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole')\n\
+          \          elif role_name == 'dms-cloudwatch-logs-role':\n            policy2 = iam.attach_role_policy(RoleName = role_name,PolicyArn = 'arn:aws:iam::aws:policy/service-role/AmazonDMSCloudWatchLogsRole')\n\
+          \        except Exception as e:\n          print(e)\n          cfnresponse.send(event, context, cfnresponse.FAILED, {}, '')\n      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, '')\n\
+          \    elif (event['RequestType'] == 'Delete') or (event['RequestType'] == 'Update'):\n      print('nothing will be done')\n      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, '')\n\
+          \  except Exception as e:\n    print(e)\n    cfnresponse.send(event, context, cfnresponse.FAILED, {}, '')\n"
+  ReplicationInstance:
+    Condition: CreateReplicationInstance
+    Properties:
+      EngineVersion:
+        Ref: EngineVersion
+      MultiAZ:
+        Ref: MultiAz
+      PubliclyAccessible: false
+      ReplicationInstanceClass:
+        Ref: InstanceType
+      ReplicationSubnetGroupIdentifier:
+        Ref: ReplicationSubnetGroup
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-ReplicationSetup
+        - Key: Product
+          Value: DMS-Automation-ReplicationSetup
+        - Key: Solution
+          Value: DMS-Automation-ReplicationSetup
+      VpcSecurityGroupIds:
+        - Ref: SecurityGroup
+    Type: AWS::DMS::ReplicationInstance
+  SourceEndpoint:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      DatabaseName:
+        Ref: SourceDBName
+      EndpointType: source
+      EngineName:
+        Ref: SourceEngine
+      Password:
+        Ref: SourcePassword
+      Port:
+        Ref: SourcePort
+      ServerName:
+        Ref: SourceEndpointServer
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-ReplicationSetup
+        - Key: Product
+          Value: DMS-Automation-ReplicationSetup
+        - Key: Solution
+          Value: DMS-Automation-ReplicationSetup
+      Username:
+        Ref: SourceUser
+  TargetEndpoint:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      DatabaseName:
+        Ref: TargetDBName
+      EndpointType: target
+      EngineName:
+        Ref: TargetEngine
+      Password:
+        Ref: TargetPassword
+      Port:
+        Ref: TargetPort
+      ServerName:
+        Ref: TargetEndpointServer
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-ReplicationSetup
+        - Key: Product
+          Value: DMS-Automation-ReplicationSetup
+        - Key: Solution
+          Value: DMS-Automation-ReplicationSetup
+      Username:
+        Ref: TargetUser
+  ReplicationSubnetGroup:
+    Condition: CreateReplicationInstance
+    DependsOn: CheckDmsIam
+    Properties:
+      ReplicationSubnetGroupDescription: DMS Automation Subnets
+      SubnetIds:
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-ReplicationSetup
+        - Key: Product
+          Value: DMS-Automation-ReplicationSetup
+        - Key: Solution
+          Value: DMS-Automation-ReplicationSetup
+    Type: AWS::DMS::ReplicationSubnetGroup
+Outputs:
+  SourceEndpointArn:
+    Description: DMS Source Endpoint Arn
+    Value:
+      Ref: SourceEndpoint
+  TargetEndpointArn:
+    Description: DMS Target Endpoint Arn
+    Value:
+      Ref: TargetEndpoint
+  ReplicationInstanceArn:
+    Description: DMS Replication Instance Arn
+    Value:
+      Fn::If:
+        - CreateReplicationInstance
+        - Ref: ReplicationInstance
+        - Ref: ReplInstanceArn

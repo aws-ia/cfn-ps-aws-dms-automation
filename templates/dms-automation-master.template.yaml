@@ -1,0 +1,458 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This stack will be used to deploy the AWS DMS automation framework for existing VPC (qs-1qcbthea2)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network configuration
+        Parameters:
+          - AvailabilityZones
+          - KeyPairName
+          - RemoteAccessCIDR
+      - Label:
+          default: Migration Setup
+        Parameters:
+          - MigNotify
+          - TaskName
+          - DBInstanceClass
+          - SampleDbPassword
+      - Label:
+          default: AWS DMS configuration for new replication instance
+        Parameters:
+          - DmsEngineVersion
+          - DmsInstanceType
+          - DmsMultiAz
+      - Label:
+          default: AWS Quick Start configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      DmsEngineVersion:
+        default: AWS DMS Engine version
+      DmsInstanceType:
+        default: Instance type
+      DmsMultiAz:
+        default: Multi AZ
+      SampleDbPassword:
+        default: Sample DB password
+      DBInstanceClass:
+        default: Sample DB instance class
+      MigNotify:
+        default: Notification email
+      TaskName:
+        default: Task name
+      AvailabilityZones:
+        default: Availability Zones
+      KeyPairName:
+        default: Key pair name
+      RemoteAccessCIDR:
+        default: Remote access CIDR
+      QSS3BucketName:
+        default: Quickstart S3 Bucket Name
+      QSS3KeyPrefix:
+        default: Quickstart S3 Prefix
+Parameters:
+  SampleDbPassword:
+    AllowedPattern: ^(?=^.{8,255}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d)((?=.*[^A-Za-z0-9])(?!.*[@/"'])).*$
+    ConstraintDescription: Min 8 chars. Must include 1 uppercase, 1 lowercase, 1 number, 1 (non / @ " ') symbol
+    Description: The database admin account password. The password must have a minimum of 8 characters and must include 1 uppercase letter, 1 lowercase letter, 1 number, and 1 (non / @ " ') symbol.
+    MaxLength: '64'
+    MinLength: '8'
+    NoEcho: 'True'
+    Type: String
+  DBInstanceClass:
+    Type: String
+    Description: The instance size of the source database that will host the sample code.
+    AllowedValues:
+      - db.r5.large
+      - db.r5.xlarge
+      - db.r5.2xlarge
+      - db.r5.4xlarge
+      - db.r5.12xlarge
+      - db.r5.24xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+    ConstraintDescription: Must select a valid database instance type.
+    Default: db.r5.large
+  MigNotify:
+    Type: String
+    Description: The email address that receives notifications on the migration status.
+  TaskName:
+    Type: String
+    Description: The name of the AWS DMS task. If left empty, the stack name is used.
+    Default: ''
+  AvailabilityZones:
+    Description: List of Availability Zones to use for the subnets in the VPC. Only two Availability Zones are used for this deployment, and the logical order of your selections is preserved.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  KeyPairName:
+    ConstraintDescription: Name of an existing EC2 key pair.
+    Description: The name of an existing public/private key pair, for connecting to your instance.
+    Type: AWS::EC2::KeyPair::KeyName
+  RemoteAccessCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Description: Allowed CIDR block for external SSH access.
+    Default: 10.0.0.0/16
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Default: aws-ia-us-east-1
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
+    Default: cfn-ps-aws-dms-automation/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
+    Type: String
+  DmsEngineVersion:
+    Default: 3.1.4
+    Type: String
+    Description: AWS DMS replication engine version.
+    AllowedValues:
+      - 3.1.4
+      - 3.1.3
+      - 2.4.5
+      - 2.4.4
+      - 2.4.3
+  DmsInstanceType:
+    Default: dms.c4.large
+    Type: String
+    Description: AWS DMS replication instance size.
+    AllowedValues:
+      - dms.t2.micro
+      - dms.t2.small
+      - dms.t2.medium
+      - dms.t2.large
+      - dms.c4.large
+      - dms.c4.xlarge
+      - dms.c4.2xlarge
+      - dms.c4.4xlarge
+  DmsMultiAz:
+    Default: 'true'
+    Type: String
+    Description: AWS DMS replication instance deployment across multiple Availability Zones.
+    AllowedValues:
+      - 'true'
+      - 'false'
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - CopyFiles
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/cfn-ps-aws-vpc/templates/aws-vpc.template
+      Parameters:
+        AvailabilityZones:
+          Fn::Join:
+            - ','
+            - Ref: AvailabilityZones
+        NumberOfAZs: '2'
+  BastionStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: CopyFiles
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/cfn-ps-linux-bastion/templates/linux-bastion-entrypoint-existing-vpc.template.yaml
+      Parameters:
+        KeyPairName:
+          Ref: KeyPairName
+        PublicSubnet1ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PublicSubnet1ID
+        PublicSubnet2ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PublicSubnet2ID
+        RemoteAccessCIDR:
+          Ref: RemoteAccessCIDR
+        VPCID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.VPCID
+  SampleSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow access to sample resources
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: -1
+          IpProtocol: '-1'
+          ToPort: -1
+      SecurityGroupIngress:
+        - CidrIp:
+            Ref: RemoteAccessCIDR
+          FromPort: 1521
+          IpProtocol: tcp
+          ToPort: 1521
+        - CidrIp:
+            Ref: RemoteAccessCIDR
+          FromPort: 5432
+          IpProtocol: tcp
+          ToPort: 5432
+      VpcId:
+        Fn::GetAtt:
+          - VPCStack
+          - Outputs.VPCID
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: SampleSGGroup-${AWS::StackName}
+  SampleSecurityGroupIngress:
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - SampleSecurityGroup
+          - GroupId
+      IpProtocol: '-1'
+      SourceSecurityGroupId:
+        Ref: SampleSecurityGroup
+      Description: Self Reference
+    Type: AWS::EC2::SecurityGroupIngress
+  AuroraStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: CopyFiles
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/cfn-ps-amazon-aurora-postgresql/templates/aurora_postgres.template.yaml
+      Parameters:
+        Subnet1ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet1AID
+        Subnet2ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet2AID
+        VPCID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.VPCID
+        CustomDBSecurityGroup:
+          Fn::GetAtt:
+            - SampleSecurityGroup
+            - GroupId
+        DBInstanceClass:
+          Ref: DBInstanceClass
+        DBMasterUserPassword:
+          Ref: SampleDbPassword
+        NotificationList:
+          Ref: MigNotify
+  DMSCodePiplineStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/dms-automation-code-pipeline.template.yaml
+      Parameters:
+        MigNotify:
+          Ref: MigNotify
+        TaskName:
+          Ref: TaskName
+        CodeBuildVpc:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.VPCID
+        CodeBuildSubnet:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet1AID
+        CodeBuildSecurityGroup:
+          Fn::GetAtt:
+            - SampleSecurityGroup
+            - GroupId
+        S3BucketName:
+          Ref: S3Bucket
+        S3BucketKey:
+          Fn::Sub: ${QSS3KeyPrefix}scripts/test.zip
+        TargetEndpoint:
+          Fn::GetAtt:
+            - AuroraStack
+            - Outputs.RDSEndPointAddress
+        TargetDbName: AuroraPostgresDB
+        TargetDbUser: pgadmin
+        TargetDbPassword:
+          Ref: SampleDbPassword
+        DmsSourceArn:
+          Fn::GetAtt:
+            - DMSReplicationStack
+            - Outputs.SourceEndpointArn
+        DmsTargetArn:
+          Fn::GetAtt:
+            - DMSReplicationStack
+            - Outputs.TargetEndpointArn
+        DmsReplicationArn:
+          Fn::GetAtt:
+            - DMSReplicationStack
+            - Outputs.ReplicationInstanceArn
+        CreateSample: 'yes'
+        FullLoadOnly: 'no'
+        SourceEndpoint:
+          Fn::GetAtt:
+            - DMSSampleSourceSetup
+            - Outputs.SampleSourceEndpoint
+        SourceDbName: ORCL
+        SourceDbPassword:
+          Ref: SampleDbPassword
+        SourceDbUser: master
+  DMSSampleSourceSetup:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: CopyFiles
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/dms-automation-sample-source.template.yaml
+      Parameters:
+        VPCID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.VPCID
+        Subnet1ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet1AID
+        Subnet2ID:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet2AID
+        DBInstanceClass:
+          Ref: DBInstanceClass
+        DBMasterUserPassword:
+          Ref: SampleDbPassword
+        CustomDBSecurityGroup:
+          Fn::GetAtt:
+            - SampleSecurityGroup
+            - GroupId
+  DMSReplicationStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: CopyFiles
+    Properties:
+      TemplateURL:
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/dms-automation-replication-setup.template.yaml
+      Parameters:
+        CreateNewReplicationInstance: 'yes'
+        ReplInstanceArn: ''
+        PrivateSubnet1:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet1AID
+        PrivateSubnet2:
+          Fn::GetAtt:
+            - VPCStack
+            - Outputs.PrivateSubnet2AID
+        SecurityGroup:
+          Fn::GetAtt:
+            - SampleSecurityGroup
+            - GroupId
+        MultiAz:
+          Ref: DmsMultiAz
+        InstanceType:
+          Ref: DmsInstanceType
+        EngineVersion:
+          Ref: DmsEngineVersion
+        SourceDBName: ORCL
+        SourceEngine: oracle
+        SourcePassword:
+          Ref: SampleDbPassword
+        SourcePort: '1521'
+        SourceEndpointServer:
+          Fn::GetAtt:
+            - DMSSampleSourceSetup
+            - Outputs.SampleSourceEndpoint
+        SourceUser: master
+        TargetDBName: AuroraPostgresDB
+        TargetEngine: aurora-postgresql
+        TargetPassword:
+          Ref: SampleDbPassword
+        TargetPort: '5432'
+        TargetEndpointServer:
+          Fn::GetAtt:
+            - AuroraStack
+            - Outputs.RDSEndPointAddress
+        TargetUser: pgadmin
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  CopyS3FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: s3-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucketVersion*
+                  - s3:ListBucket
+                  - s3:DeleteObjectVersion
+                  - s3:GetObjectVersion*
+                Resource:
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}/*
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${QSS3BucketName}
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${QSS3BucketName}/*
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - EIAMPolicyActionWildcard
+          ignore_reasons:
+            - EIAMPolicyActionWildcard: Intent assumed for initial migration.
+  CopyFiles:
+    Type: Custom::CopyFiles
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CopyS3Function
+          - Arn
+      Bucket:
+        Ref: S3Bucket
+      Source:
+        Ref: QSS3BucketName
+      Prefix:
+        Ref: QSS3KeyPrefix
+      Objects:
+        - scripts/test.zip
+  CopyS3Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: "import cfnresponse\nimport boto3\nimport traceback\nimport json\nimport time\n\ndef lambda_handler(event, context):\n    \n    try:\n        print('Received event: %s' % json.dumps(event,\
+          \ indent=2))\n        bucket = event['ResourceProperties']['Bucket']\n        source_bucket = event['ResourceProperties']['Source']\n        source_bucket_prefix = event['ResourceProperties']['Prefix']\n\
+          \        objects = event['ResourceProperties']['Objects']\n        if event['RequestType'] == 'Delete':\n            s3 = boto3.resource('s3')\n            bucket = s3.Bucket(bucket)\n       \
+          \     bucket.object_versions.all().delete()\n            print('Delete stack in progress the bucket is emptied')\n        elif event['RequestType'] == 'Update':\n            print('Stack is getting\
+          \ updated nothing will be done')\n        elif event['RequestType'] == 'Create':\n            s3 = boto3.client('s3')\n            for o in objects:\n                key = source_bucket_prefix\
+          \ + o\n                copy_source={\n                    'Bucket': source_bucket,\n                    'Key': key\n                }\n                s3.copy_object(CopySource=copy_source, Bucket=bucket,\
+          \ Key=key)\n        cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, '')\n    except:\n        print(traceback.print_exc())\n        cfnresponse.send(event, context, cfnresponse.FAILED,\
+          \ {}, '')\n"
+      Role:
+        Fn::GetAtt:
+          - CopyS3FunctionRole
+          - Arn
+      Runtime: python3.7
+      Handler: index.lambda_handler
+      Timeout: 600

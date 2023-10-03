@@ -1,28 +1,26 @@
 :xrefstyle: short
 
-Deploying this Partner Solution with default parameters builds the following {partner-product-short-name} environment in the
-AWS Cloud.
 
-// Replace this example diagram with your own. Follow our wiki guidelines: https://w.amazon.com/bin/view/AWS_Quick_Starts/Process_for_PSAs/#HPrepareyourarchitecturediagram. Upload your source PowerPoint file to the GitHub {deployment name}/docs/images/ directory in its repository.
+
+Deploying this Partner Solution with default parameters builds the following AWS DMS Automation Framework environment in an existing virtual private cloud (VPC) in the AWS Cloud.
 
 [#architecture1]
 .Partner Solution architecture for {partner-product-short-name} on AWS
-image::../docs/deployment_guide/images/architecture_diagram.png[Architecture]
+image::../docs/deployment_guide/images/image2.png[Architecture]
 
-As shown in <<architecture1>>, this Partner Solution sets up the following:
+The Quick Start sets up the following:
 
-* A highly available architecture that spans two Availability Zones.*
-* A virtual private cloud (VPC) configured with public and private subnets, according to AWS
-best practices, to provide you with your own virtual network on AWS.*
-* In the public subnets:
-** Managed network address translation (NAT) gateways to allow outbound
-internet access for resources in the private subnets.*
-** A Linux bastion host in an Auto Scaling group to allow inbound Secure
-Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in public and private subnets.*
+* A highly available architecture that spans two Availability Zones*
 * In the private subnets:
-** <item>.
-** <item>.
-// Add bullet points for any additional components that are included in the deployment. Ensure that the additional components are shown in the architecture diagram. End each bullet with a period.
-* <describe any additional components>.
 
-[.small]#* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+* CodeBuild to deploy code into the target Amazon RDS database
+* An AWS DMS replication instance*
+
+* AWS DMS endpoints for migrating data and replicating on-going changes from source to target**
+* A versioned S3 bucket, used as a source to trigger AWS CodePipeline
+* Amazon SNS, which streams CodePipeline and AWS DMS events to Lambda and to the end user over email
+* Parameter Store for storing the CodePipeline execution token.
+
+* The default is not to create a new replication instance, but you have the option to create one.
+
+** The template will prompt you for your existing AWS DMS resource configuration.
