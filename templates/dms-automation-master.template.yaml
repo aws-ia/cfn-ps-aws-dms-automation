@@ -148,7 +148,7 @@ Resources:
       - CopyFiles
     Properties:
       TemplateURL:
-        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/cfn-ps-aws-vpc/templates/aws-vpc.template
+        Fn::Sub: https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/cfn-ps-aws-vpc/templates/aws-vpc.template.yaml
       Parameters:
         AvailabilityZones:
           Fn::Join:
