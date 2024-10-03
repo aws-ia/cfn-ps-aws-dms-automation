@@ -1,4 +1,9 @@
 # quickstart-aws-dms-automation
+## Deprecation Notice
+
+:x: This repository is subject to deprecation in Q4 2024. For more details, [please review this announcement](https://github.com/aws-ia/.announcements/issues/1). 
+
+
 ## AWS Database Migration Service Automation Framework
 
 This Amazon Web Services (AWS) Quick Start deploys AWS Database Migration Service (AWS DMS) Automation Framework on the AWS Cloud in about 30 minutes. This Quick Start is for users who currently do one of the following:
